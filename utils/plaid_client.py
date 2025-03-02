@@ -40,19 +40,20 @@ class PlaidClient:
 
     def create_link_token(self, user_id):
         try:
+            print("Attempting to create link token...")
+
             # Create link token request with minimal required parameters
             request = LinkTokenCreateRequest(
+                products=[Products("transactions")],
+                client_name="WealthWise",
+                country_codes=[CountryCode("US")],
+                language="en",
                 user=LinkTokenCreateRequestUser(
                     client_user_id=user_id
-                ),
-                client_name="WealthWise",
-                products=[Products("transactions")],
-                country_codes=[CountryCode("US")],
-                language="en"
+                )
             )
 
             # Create link token with error handling
-            print("Attempting to create link token...")
             response = self.client.link_token_create(request)
             print("Link token created successfully")
             return response.link_token
