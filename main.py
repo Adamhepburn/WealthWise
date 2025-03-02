@@ -8,6 +8,7 @@ from utils.charts import (
     create_expense_trend_chart
 )
 from datetime import datetime
+import json
 
 # Page configuration
 st.set_page_config(
@@ -31,23 +32,23 @@ data_manager = get_data_manager()
 st.sidebar.title("Navigation")
 page = st.sidebar.radio(
     "Go to",
-    ["Overview", "Expenses", "Investments", "Goals"]
+    ["Overview", "Bank Accounts", "Expenses", "Investments", "Goals"]
 )
 
 # Overview Page
 if page == "Overview":
     st.title("Financial Overview")
-    
+
     # Key metrics
     col1, col2, col3 = st.columns(3)
-    
+
     with col1:
         st.metric(
             "Total Expenses",
             f"${data_manager.get_total_expenses():,.2f}",
             "-12.5%"
         )
-    
+
     with col2:
         portfolio_value = data_manager.get_portfolio_value()
         portfolio_return = data_manager.get_portfolio_return()
@@ -56,29 +57,71 @@ if page == "Overview":
             f"${portfolio_value:,.2f}",
             f"{portfolio_return:.1f}%"
         )
-    
+
     with col3:
         st.metric(
             "Net Worth",
             f"${portfolio_value - data_manager.get_total_expenses():,.2f}",
             "8.2%"
         )
-    
+
     # Charts
     col1, col2 = st.columns(2)
-    
+
     with col1:
         expenses_by_category = data_manager.get_expenses_by_category()
         st.plotly_chart(
             create_expense_pie_chart(expenses_by_category),
             use_container_width=True
         )
-    
+
     with col2:
+        investments = data_manager.get_investments()
         st.plotly_chart(
-            create_portfolio_pie_chart(data_manager.investments),
+            create_portfolio_pie_chart(investments),
             use_container_width=True
         )
+
+# Bank Accounts Page
+elif page == "Bank Accounts":
+    st.title("Connected Bank Accounts")
+
+    # Link new account button
+    if st.button("+ Link New Account"):
+        link_token = data_manager.create_link_token()
+
+        # Inject Plaid Link
+        st.markdown(f"""
+        <script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
+        <script>
+        const handler = Plaid.create({{
+            token: '{link_token}',
+            onSuccess: (public_token, metadata) => {{
+                fetch('/api/plaid/exchange_token', {{
+                    method: 'POST',
+                    headers: {{'Content-Type': 'application/json'}},
+                    body: JSON.stringify({{ 
+                        public_token: public_token,
+                        accounts: metadata.accounts
+                    }})
+                }});
+            }},
+        }});
+        handler.open();
+        </script>
+        """, unsafe_allow_html=True)
+
+    # Display linked accounts
+    accounts = data_manager.get_linked_accounts()
+    if not accounts.empty:
+        st.dataframe(accounts, use_container_width=True)
+
+        if st.button("Sync Transactions"):
+            with st.spinner("Syncing transactions..."):
+                data_manager.sync_transactions()
+            st.success("Transactions synced successfully!")
+    else:
+        st.info("No bank accounts connected yet. Click 'Link New Account' to get started!")
 
 # Expenses Page
 elif page == "Expenses":
@@ -106,41 +149,43 @@ elif page == "Expenses":
             st.rerun()
 
     # Display expense trend
+    expenses = data_manager.get_expenses()
     st.plotly_chart(
-        create_expense_trend_chart(data_manager.expenses),
+        create_expense_trend_chart(expenses),
         use_container_width=True
     )
-    
+
     # Recent expenses table
     st.subheader("Recent Expenses")
     st.dataframe(
-        data_manager.expenses.sort_values('date', ascending=False).head(10),
+        expenses.sort_values('date', ascending=False).head(10),
         use_container_width=True
     )
 
 # Investments Page
 elif page == "Investments":
     st.title("Investment Portfolio")
-    
+
     # Portfolio summary
     col1, col2 = st.columns(2)
-    
+
     with col1:
         st.metric(
             "Total Portfolio Value",
             f"${data_manager.get_portfolio_value():,.2f}",
             f"{data_manager.get_portfolio_return():.1f}%"
         )
-    
+
     with col2:
+        investments = data_manager.get_investments()
         st.plotly_chart(
-            create_portfolio_pie_chart(data_manager.investments),
+            create_portfolio_pie_chart(investments),
             use_container_width=True
         )
-    
+
     # Investment details table
     st.subheader("Portfolio Details")
-    st.dataframe(data_manager.investments, use_container_width=True)
+    st.dataframe(investments, use_container_width=True)
 
 # Goals Page
 else:
@@ -165,11 +210,12 @@ else:
             st.rerun()
 
     # Goals progress chart
+    goals = data_manager.get_goals()
     st.plotly_chart(
-        create_goals_progress_chart(data_manager.goals),
+        create_goals_progress_chart(goals),
         use_container_width=True
     )
-    
+
     # Goals table
     st.subheader("Current Goals")
-    st.dataframe(data_manager.goals, use_container_width=True)
+    st.dataframe(goals, use_container_width=True)
