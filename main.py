@@ -7,6 +7,7 @@ from utils.charts import (
     create_goals_progress_chart,
     create_expense_trend_chart
 )
+from datetime import datetime
 
 # Page configuration
 st.set_page_config(
@@ -82,7 +83,7 @@ if page == "Overview":
 # Expenses Page
 elif page == "Expenses":
     st.title("Expense Tracking")
-    
+
     # Expense input form
     with st.form("expense_form"):
         col1, col2, col3 = st.columns(3)
@@ -95,10 +96,15 @@ elif page == "Expenses":
             )
         with col3:
             date = st.date_input("Date")
-        
+
         description = st.text_input("Description")
         submitted = st.form_submit_button("Add Expense")
-    
+
+        if submitted:
+            data_manager.add_expense(date, category, amount, description)
+            st.success("Expense added successfully!")
+            st.rerun()
+
     # Display expense trend
     st.plotly_chart(
         create_expense_trend_chart(data_manager.expenses),
@@ -139,7 +145,7 @@ elif page == "Investments":
 # Goals Page
 else:
     st.title("Financial Goals")
-    
+
     # Goal input form
     with st.form("goal_form"):
         col1, col2, col3 = st.columns(3)
@@ -149,9 +155,15 @@ else:
             target_amount = st.number_input("Target Amount", min_value=0.0)
         with col3:
             deadline = st.date_input("Target Date")
-        
+
+        current_amount = st.number_input("Current Amount", min_value=0.0)
         submitted = st.form_submit_button("Add Goal")
-    
+
+        if submitted:
+            data_manager.add_goal(goal_name, target_amount, current_amount, deadline)
+            st.success("Goal added successfully!")
+            st.rerun()
+
     # Goals progress chart
     st.plotly_chart(
         create_goals_progress_chart(data_manager.goals),
