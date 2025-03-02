@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 from utils.data_manager import DataManager
@@ -8,7 +7,6 @@ from utils.charts import (
     create_goals_progress_chart,
     create_expense_trend_chart
 )
-from datetime import datetime
 import streamlit.components.v1 as components
 
 # Page configuration
@@ -42,48 +40,53 @@ if page == "Bank Accounts":
         try:
             # Get link token
             link_token = data_manager.create_link_token()
+            st.session_state['link_token'] = link_token  # Store in session state
             st.write("Debug: Link token created:", link_token[:10] + "...")
-
-            # Simplified Plaid Link HTML
-            plaid_html = f"""
-            <div>
-                <script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
-                <div id="plaid-status">Initializing Plaid...</div>
-                <script type="text/javascript">
-                    (function() {{
-                        var handler = Plaid.create({{
-                            token: '{link_token}',
-                            onSuccess: function(public_token, metadata) {{
-                                document.getElementById('plaid-status').innerHTML = 'Success!';
-                            }},
-                            onLoad: function() {{ handler.open(); }},
-                            onExit: function(err, metadata) {{
-                                if (err != null) {{
-                                    document.getElementById('plaid-status').innerHTML = 'Error: ' + err.display_message;
-                                }}
-                            }}
-                        }});
-                    }})();
-                </script>
-            </div>
-            """
-
-            # Display Plaid interface
-            components.html(plaid_html, height=400)
-
         except Exception as e:
             st.error("Failed to initialize Plaid")
             st.write("Error details:", str(e))
-    
-    col1, col2 = st.columns(2)
-    with col2:
-        st.write("Connect your bank account securely using Plaid")
-        st.write("Your data is encrypted and secure")
+
+    # Display Plaid Link if token exists
+    if 'link_token' in st.session_state:
+        plaid_html = f"""
+        <div>
+            <script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
+            <div id="plaid-status">Initializing Plaid...</div>
+            <script type="text/javascript">
+                console.log('Script running...');
+                const handler = Plaid.create({{
+                    token: '{st.session_state['link_token']}',
+                    onSuccess: function(public_token, metadata) {{
+                        document.getElementById('plaid-status').innerHTML = 'Success! Public Token: ' + public_token;
+                        console.log('Success:', public_token, metadata);
+                    }},
+                    onLoad: function() {{
+                        document.getElementById('plaid-status').innerHTML = 'Plaid Loaded - Opening...';
+                        console.log('Plaid loaded');
+                        handler.open();
+                    }},
+                    onExit: function(err, metadata) {{
+                        if (err != null) {{
+                            document.getElementById('plaid-status').innerHTML = 'Error: ' + (err.display_message || JSON.stringify(err));
+                            console.error('Plaid error:', err);
+                        }} else {{
+                            document.getElementById('plaid-status').innerHTML = 'Exited';
+                        }}
+                    }},
+                    onEvent: function(eventName, metadata) {{
+                        console.log('Event:', eventName, metadata);
+                    }}
+                }});
+            </script>
+        </div>
+        """
+        components.html(plaid_html, height=600)  # Increased height for visibility
+        st.write("Plaid component loaded - check the popup or browser console for details.")
 
     # Display linked accounts
-    st.subheader("Connected Accounts")
     accounts = data_manager.get_linked_accounts()
     if not accounts.empty:
+        st.subheader("Connected Accounts")
         st.dataframe(accounts, use_container_width=True)
 
         if st.button("Sync Transactions", key="sync"):
