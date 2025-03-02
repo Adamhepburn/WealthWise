@@ -16,19 +16,23 @@ class PlaidClient:
             raise ValueError("Missing required Plaid API credentials")
 
         try:
-            # Configure API client
-            self.configuration = plaid.Configuration(
+            # Configure API client with environment and version
+            configuration = plaid.Configuration(
                 host=plaid.Environment.Sandbox,
                 api_key={
                     'clientId': self.client_id,
                     'secret': self.secret,
+                    'plaidVersion': '2020-09-14'
                 }
             )
-            self.api_client = plaid.ApiClient(self.configuration)
+
+            # Initialize API client
+            self.api_client = plaid.ApiClient(configuration)
             self.client = plaid_api.PlaidApi(self.api_client)
 
-            # Test configuration
+            # Debug info
             print(f"Initializing Plaid client with ID: {self.client_id[:8]}...")
+            print("Plaid client initialized successfully")
 
         except Exception as e:
             print(f"Error initializing Plaid client: {str(e)}")
@@ -36,7 +40,7 @@ class PlaidClient:
 
     def create_link_token(self, user_id):
         try:
-            # Create link token request
+            # Create link token request with minimal required parameters
             request = LinkTokenCreateRequest(
                 user=LinkTokenCreateRequestUser(
                     client_user_id=user_id
@@ -44,16 +48,18 @@ class PlaidClient:
                 client_name="WealthWise",
                 products=[Products("transactions")],
                 country_codes=[CountryCode("US")],
-                language="en",
-                redirect_uri="https://localhost:5000"  # Required for development
+                language="en"
             )
 
-            # Create link token
+            # Create link token with error handling
+            print("Attempting to create link token...")
             response = self.client.link_token_create(request)
+            print("Link token created successfully")
             return response.link_token
 
         except plaid.ApiException as e:
-            print(f"Plaid API Error: {e.body}")
+            error_response = e.body
+            print(f"Plaid API Error: {error_response}")
             raise
         except Exception as e:
             print(f"Unexpected error creating link token: {str(e)}")
