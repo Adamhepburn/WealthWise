@@ -50,38 +50,41 @@ if page == "Bank Accounts":
     if 'link_token' in st.session_state:
         plaid_html = f"""
         <div>
-            <script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
+            <script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js" async></script>
             <div id="plaid-status">Initializing Plaid...</div>
             <script type="text/javascript">
-                console.log('Script running...');
-                const handler = Plaid.create({{
-                    token: '{st.session_state['link_token']}',
-                    onSuccess: function(public_token, metadata) {{
-                        document.getElementById('plaid-status').innerHTML = 'Success! Public Token: ' + public_token;
-                        console.log('Success:', public_token, metadata);
-                    }},
-                    onLoad: function() {{
-                        document.getElementById('plaid-status').innerHTML = 'Plaid Loaded - Opening...';
-                        console.log('Plaid loaded');
-                        handler.open();
-                    }},
-                    onExit: function(err, metadata) {{
-                        if (err != null) {{
-                            document.getElementById('plaid-status').innerHTML = 'Error: ' + (err.display_message || JSON.stringify(err));
-                            console.error('Plaid error:', err);
-                        }} else {{
-                            document.getElementById('plaid-status').innerHTML = 'Exited';
+                console.log('Script starting with token: {st.session_state['link_token'][:10]}...');
+                window.onload = function() {{
+                    console.log('Window loaded, initializing Plaid...');
+                    const handler = Plaid.create({{
+                        token: '{st.session_state['link_token']}',
+                        onSuccess: function(public_token, metadata) {{
+                            document.getElementById('plaid-status').innerHTML = 'Success! Public Token: ' + public_token;
+                            console.log('Success:', public_token, metadata);
+                        }},
+                        onLoad: function() {{
+                            document.getElementById('plaid-status').innerHTML = 'Plaid Loaded - Opening...';
+                            console.log('Plaid SDK loaded');
+                            handler.open();
+                        }},
+                        onExit: function(err, metadata) {{
+                            if (err != null) {{
+                                document.getElementById('plaid-status').innerHTML = 'Error: ' + (err.display_message || JSON.stringify(err));
+                                console.error('Plaid error:', err);
+                            }} else {{
+                                document.getElementById('plaid-status').innerHTML = 'Exited';
+                            }}
+                        }},
+                        onEvent: function(eventName, metadata) {{
+                            console.log('Plaid event:', eventName, metadata);
                         }}
-                    }},
-                    onEvent: function(eventName, metadata) {{
-                        console.log('Event:', eventName, metadata);
-                    }}
-                }});
+                    }});
+                }};
             </script>
         </div>
         """
-        components.html(plaid_html, height=600)  # Increased height for visibility
-        st.write("Plaid component loaded - check the popup or browser console for details.")
+        components.html(plaid_html, height=600)
+        st.write("Plaid component loaded - check the popup or browser console (F12) for details.")
 
     # Display linked accounts
     accounts = data_manager.get_linked_accounts()
