@@ -8,51 +8,55 @@ from plaid.model.products import Products
 
 class PlaidClient:
     def __init__(self):
-        client_id = os.getenv('PLAID_CLIENT_ID')
-        secret = os.getenv('PLAID_SECRET')
+        # Get credentials from environment
+        self.client_id = os.getenv('PLAID_CLIENT_ID')
+        self.secret = os.getenv('PLAID_SECRET')
 
-        if not client_id or not secret:
-            raise ValueError(
-                "Plaid API keys (PLAID_CLIENT_ID or PLAID_SECRET) are missing or invalid"
+        if not self.client_id or not self.secret:
+            raise ValueError("Missing required Plaid API credentials")
+
+        try:
+            # Configure API client
+            self.configuration = plaid.Configuration(
+                host=plaid.Environment.Sandbox,
+                api_key={
+                    'clientId': self.client_id,
+                    'secret': self.secret,
+                }
             )
+            self.api_client = plaid.ApiClient(self.configuration)
+            self.client = plaid_api.PlaidApi(self.api_client)
 
-        # Initialize the Plaid client with explicit environment
-        configuration = plaid.Configuration(
-            host=plaid.Environment.Sandbox,  # Using sandbox environment
-            api_key={
-                'clientId': client_id,
-                'secret': secret,
-                'plaidVersion': '2020-09-14'  # Explicitly set API version
-            }
-        )
+            # Test configuration
+            print(f"Initializing Plaid client with ID: {self.client_id[:8]}...")
 
-        self.api_client = plaid.ApiClient(configuration)
-        self.client = plaid_api.PlaidApi(self.api_client)
+        except Exception as e:
+            print(f"Error initializing Plaid client: {str(e)}")
+            raise
 
     def create_link_token(self, user_id):
         try:
-            # Create the request with explicit product enums
+            # Create link token request
             request = LinkTokenCreateRequest(
-                products=[Products("auth"), Products("transactions")],
-                client_name="WealthWise",
-                country_codes=[CountryCode("US")],
-                language="en",
                 user=LinkTokenCreateRequestUser(
                     client_user_id=user_id
                 ),
-                redirect_uri=None  # Add this if you need OAuth redirect
+                client_name="WealthWise",
+                products=[Products("transactions")],
+                country_codes=[CountryCode("US")],
+                language="en",
+                redirect_uri="https://localhost:5000"  # Required for development
             )
 
-            # Make the request and get response
+            # Create link token
             response = self.client.link_token_create(request)
             return response.link_token
 
         except plaid.ApiException as e:
-            error_response = e.body
-            print(f"Plaid API Error: {error_response}")
+            print(f"Plaid API Error: {e.body}")
             raise
         except Exception as e:
-            print(f"Unexpected Error: {str(e)}")
+            print(f"Unexpected error creating link token: {str(e)}")
             raise
 
     def exchange_public_token(self, public_token):
@@ -62,7 +66,7 @@ class PlaidClient:
             )
             return exchange_response.access_token
         except Exception as e:
-            print(f"Error exchanging public token: {e}")
+            print(f"Error exchanging public token: {str(e)}")
             raise
 
     def get_transactions(self, access_token):
@@ -73,5 +77,5 @@ class PlaidClient:
                 end_date="2024-12-31"
             ).transactions
         except Exception as e:
-            print(f"Error fetching transactions: {e}")
+            print(f"Error fetching transactions: {str(e)}")
             raise
