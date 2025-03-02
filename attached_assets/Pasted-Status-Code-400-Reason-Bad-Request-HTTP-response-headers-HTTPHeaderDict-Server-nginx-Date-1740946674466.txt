@@ -1,0 +1,38 @@
+Status Code: 400 Reason: Bad Request HTTP response headers: HTTPHeaderDict({'Server': 'nginx', 'Date': 'Sun, 02 Mar 2025 20:17:43 GMT', 'Content-Type': 'application/json; charset=utf-8', 'Content-Length': '301', 'Connection': 'keep-alive', 'x-envoy-upstream-service-time': '13', 'x-envoy-decorator-operation': 'default.svc-apiv2:8080/*'}) HTTP response body: { "display_message": null, "documentation_url": "https://plaid.com/docs/?ref=error#invalid-input-errors", "error_code": "INVALID_API_KEYS", "error_message": "invalid client_id or secret provided", "error_type": "INVALID_INPUT", "request_id": "bF19dwM0vFCmdjQ", "suggested_action": null }
+Traceback:
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/streamlit/runtime/scriptrunner/exec_code.py", line 121, in exec_func_with_error_handling
+    result = func()
+             ^^^^^^
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/streamlit/runtime/scriptrunner/script_runner.py", line 591, in code_to_exec
+    exec(code, module.__dict__)
+File "/home/runner/workspace/main.py", line 91, in <module>
+    link_token = data_manager.create_link_token()
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+File "/home/runner/workspace/utils/data_manager.py", line 73, in create_link_token
+    return self.plaid_client.create_link_token(user_id)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+File "/home/runner/workspace/utils/plaid_client.py", line 43, in create_link_token
+    response = self.client.link_token_create(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/plaid/api/plaid_api.py", line 27737, in link_token_create
+    return self.link_token_create_endpoint.call_with_http_info(**kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/plaid/api_client.py", line 879, in call_with_http_info
+    return self.api_client.call_api(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/plaid/api_client.py", line 421, in call_api
+    return self.__call_api(resource_path, method,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/plaid/api_client.py", line 205, in __call_api
+    raise e
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/plaid/api_client.py", line 198, in __call_api
+    response_data = self.request(
+                    ^^^^^^^^^^^^^
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/plaid/api_client.py", line 467, in request
+    return self.rest_client.POST(url,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/plaid/rest.py", line 273, in POST
+    return self.request("POST", url,
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+File "/home/runner/workspace/.pythonlibs/lib/python3.11/site-packages/plaid/rest.py", line 232, in request
+    raise ApiException(http_resp=r)

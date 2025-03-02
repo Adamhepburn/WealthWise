@@ -16,20 +16,22 @@ class PlaidClient:
                 "Plaid API keys (PLAID_CLIENT_ID or PLAID_SECRET) are missing or invalid"
             )
 
-        # Updated configuration setup
+        # Initialize the Plaid client with explicit environment
         configuration = plaid.Configuration(
-            host=plaid.Environment.Sandbox,
+            host=plaid.Environment.Sandbox,  # Using sandbox environment
             api_key={
                 'clientId': client_id,
                 'secret': secret,
+                'plaidVersion': '2020-09-14'  # Explicitly set API version
             }
         )
 
-        api_client = plaid.ApiClient(configuration)
-        self.client = plaid_api.PlaidApi(api_client)
+        self.api_client = plaid.ApiClient(configuration)
+        self.client = plaid_api.PlaidApi(self.api_client)
 
     def create_link_token(self, user_id):
         try:
+            # Create the request with explicit product enums
             request = LinkTokenCreateRequest(
                 products=[Products("auth"), Products("transactions")],
                 client_name="WealthWise",
@@ -37,17 +39,20 @@ class PlaidClient:
                 language="en",
                 user=LinkTokenCreateRequestUser(
                     client_user_id=user_id
-                )
+                ),
+                redirect_uri=None  # Add this if you need OAuth redirect
             )
 
+            # Make the request and get response
             response = self.client.link_token_create(request)
             return response.link_token
 
         except plaid.ApiException as e:
-            print(f"Plaid API Error: {e}")
+            error_response = e.body
+            print(f"Plaid API Error: {error_response}")
             raise
         except Exception as e:
-            print(f"Unexpected Error: {e}")
+            print(f"Unexpected Error: {str(e)}")
             raise
 
     def exchange_public_token(self, public_token):
