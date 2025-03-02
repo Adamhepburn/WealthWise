@@ -1,6 +1,6 @@
 from sqlalchemy import create_engine, Column, Integer, Float, String, Date, ForeignKey, DateTime, text
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, relationship
+from sqlalchemy.orm import sessionmaker, relationship, scoped_session
 from sqlalchemy.pool import QueuePool
 import os
 from datetime import datetime
@@ -18,6 +18,7 @@ def create_db_engine():
         max_overflow=10,
         pool_timeout=30,
         pool_recycle=1800,  # Recycle connections after 30 minutes
+        pool_pre_ping=True,  # Enable connection health checks
         connect_args={
             "connect_timeout": 30,
             "keepalives": 1,
@@ -49,7 +50,8 @@ def get_engine():
 
 # Create engine and session factory
 engine = get_engine()
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+session_factory = sessionmaker(bind=engine)
+SessionLocal = scoped_session(session_factory)
 Base = declarative_base()
 
 class PlaidAccount(Base):
@@ -121,5 +123,8 @@ def get_db():
     db = SessionLocal()
     try:
         yield db
+    except Exception as e:
+        db.rollback()
+        raise
     finally:
-        db.close()
+        db.remove()  # This properly closes the session
