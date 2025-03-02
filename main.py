@@ -30,55 +30,79 @@ data_manager = get_data_manager()
 
 # Sidebar navigation
 st.sidebar.title("Navigation")
-# Use a unique key for the radio button
 page = st.sidebar.radio("Go to", ["Overview", "Bank Accounts", "Expenses", "Investments", "Goals"], key="nav")
 
 # Bank Accounts Page
 if page == "Bank Accounts":
     st.title("Connected Bank Accounts")
 
-    # Link new account section
-    if st.button("+ Link New Account", key="link_account"):
-        try:
-            # Get link token
-            link_token = data_manager.create_link_token()
-            st.write("Debug: Link token created:", link_token[:10] + "...")
+    col1, col2 = st.columns([2, 1])
 
-            # Simplified Plaid Link HTML
-            plaid_html = f"""
-            <div>
-                <script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
-                <div id="plaid-status">Initializing Plaid...</div>
-                <script type="text/javascript">
-                    (function() {{
-                        var handler = Plaid.create({{
-                            token: '{link_token}',
-                            onSuccess: function(public_token, metadata) {{
-                                document.getElementById('plaid-status').innerHTML = 'Success!';
-                            }},
-                            onLoad: function() {{ handler.open(); }},
-                            onExit: function(err, metadata) {{
-                                if (err != null) {{
-                                    document.getElementById('plaid-status').innerHTML = 'Error: ' + err.display_message;
+    with col1:
+        # Link new account section
+        if st.button("+ Link New Account", key="link_account"):
+            try:
+                # Get link token
+                link_token = data_manager.create_link_token()
+                st.session_state.link_token = link_token  # Store token in session state
+
+                # Create minimal Plaid Link HTML
+                plaid_html = f"""
+                <div>
+                    <script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
+                    <div id="plaid-status">Loading Plaid...</div>
+                    <script>
+                        console.log('Starting Plaid initialization');
+                        try {{
+                            var config = {{
+                                token: '{link_token}',
+                                onSuccess: function(public_token, metadata) {{
+                                    console.log('Plaid success');
+                                    document.getElementById('plaid-status').innerText = 'Account connected!';
+                                }},
+                                onLoad: function() {{
+                                    console.log('Plaid loaded');
+                                    document.getElementById('plaid-status').innerText = 'Opening Plaid...';
+                                }},
+                                onEvent: function(eventName) {{
+                                    console.log('Plaid event:', eventName);
+                                }},
+                                onExit: function(err) {{
+                                    console.log('Plaid exit', err);
+                                    if (err != null) {{
+                                        document.getElementById('plaid-status').innerText = 'Error: ' + err.display_message;
+                                    }}
                                 }}
-                            }}
-                        }});
-                    }})();
-                </script>
-            </div>
-            """
+                            }};
+                            console.log('Creating Plaid instance');
+                            var handler = Plaid.create(config);
+                            console.log('Opening Plaid');
+                            setTimeout(function() {{
+                                handler.open();
+                            }}, 100);
+                        }} catch (error) {{
+                            console.error('Plaid error:', error);
+                            document.getElementById('plaid-status').innerText = 'Error: ' + error.message;
+                        }}
+                    </script>
+                </div>
+                """
 
-            # Display Plaid interface
-            components.html(plaid_html, height=400)
+                # Render Plaid interface
+                components.html(plaid_html, height=400)
 
-        except Exception as e:
-            st.error("Failed to initialize Plaid")
-            st.write("Error details:", str(e))
+            except Exception as e:
+                st.error("Failed to initialize Plaid")
+                st.write("Error:", str(e))
+
+    with col2:
+        st.write("Connect your bank account securely using Plaid")
+        st.write("Your data is encrypted and secure")
 
     # Display linked accounts
+    st.subheader("Connected Accounts")
     accounts = data_manager.get_linked_accounts()
     if not accounts.empty:
-        st.subheader("Connected Accounts")
         st.dataframe(accounts, use_container_width=True)
 
         if st.button("Sync Transactions", key="sync"):
