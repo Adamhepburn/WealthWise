@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, Column, Integer, Float, String, Date, ForeignKey, DateTime
+from sqlalchemy import create_engine, Column, Integer, Float, String, Date, ForeignKey, DateTime, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 from sqlalchemy.pool import QueuePool
@@ -35,17 +35,19 @@ def get_engine():
     for attempt in range(max_retries):
         try:
             engine = create_db_engine()
-            # Test connection
+            # Test connection with proper SQLAlchemy query
             with engine.connect() as conn:
-                conn.execute("SELECT 1")
-            return engine
+                conn.execute(text("SELECT 1")).scalar()
+                return engine
         except Exception as e:
             if attempt == max_retries - 1:
+                print(f"Failed to connect to database after {max_retries} attempts: {str(e)}")
                 raise
             print(f"Database connection attempt {attempt + 1} failed, retrying in {retry_delay}s...")
             time.sleep(retry_delay)
             retry_delay *= 2
 
+# Create engine and session factory
 engine = get_engine()
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
@@ -102,9 +104,19 @@ class FinancialGoal(Base):
     current = Column(Float, nullable=False)
     deadline = Column(Date, nullable=False)
 
-# Create all tables
-Base.metadata.create_all(bind=engine)
+# Create tables
+def init_db():
+    try:
+        Base.metadata.create_all(bind=engine)
+        print("Database tables created successfully")
+    except Exception as e:
+        print(f"Error creating database tables: {str(e)}")
+        raise
 
+# Initialize database
+init_db()
+
+# Database session dependency
 def get_db():
     db = SessionLocal()
     try:
