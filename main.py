@@ -8,7 +8,6 @@ from utils.charts import (
     create_expense_trend_chart
 )
 from datetime import datetime
-import json
 import streamlit.components.v1 as components
 
 # Page configuration
@@ -31,93 +30,50 @@ data_manager = get_data_manager()
 
 # Sidebar navigation
 st.sidebar.title("Navigation")
-page = st.sidebar.radio(
-    "Go to",
-    ["Overview", "Bank Accounts", "Expenses", "Investments", "Goals"]
-)
+# Use a unique key for the radio button
+page = st.sidebar.radio("Go to", ["Overview", "Bank Accounts", "Expenses", "Investments", "Goals"], key="nav")
 
 # Bank Accounts Page
 if page == "Bank Accounts":
     st.title("Connected Bank Accounts")
 
     # Link new account section
-    if st.button("+ Link New Account"):
-        with st.spinner("Initializing Plaid connection..."):
-            try:
-                link_token = data_manager.create_link_token()
-                st.write("Debug: Link token created:", link_token[:10] + "...")
+    if st.button("+ Link New Account", key="link_account"):
+        try:
+            # Get link token
+            link_token = data_manager.create_link_token()
+            st.write("Debug: Link token created:", link_token[:10] + "...")
 
-                # Create a more robust Plaid Link implementation
-                plaid_html = f"""
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
-                </head>
-                <body>
-                    <div id="plaid-result">Initializing Plaid...</div>
-
-                    <script type="text/javascript">
-                        console.log("Starting Plaid initialization...");
-
-                        // Wait for the Plaid script to load
-                        function initializePlaid() {{
-                            console.log("Creating Plaid instance...");
-                            try {{
-                                const config = {{
-                                    token: '{link_token}',
-                                    onSuccess: (public_token, metadata) => {{
-                                        console.log("Plaid Link success!");
-                                        document.getElementById('plaid-result').innerHTML = 'Account linked successfully!';
-                                    }},
-                                    onLoad: () => {{
-                                        console.log("Plaid Link loaded!");
-                                        document.getElementById('plaid-result').innerHTML = 'Opening Plaid interface...';
-                                    }},
-                                    onExit: (err, metadata) => {{
-                                        console.log("Plaid Link exit", err);
-                                        if (err != null) {{
-                                            document.getElementById('plaid-result').innerHTML = 
-                                                'Error: ' + (err.display_message || err.error_message || 'Unknown error');
-                                        }}
-                                    }},
-                                    onEvent: (eventName, metadata) => {{
-                                        console.log("Plaid event:", eventName);
-                                        document.getElementById('plaid-result').innerHTML = 
-                                            'Status: ' + eventName;
-                                    }}
-                                }};
-
-                                console.log("Plaid config created, initializing handler...");
-                                const handler = Plaid.create(config);
-                                console.log("Handler created, opening Plaid...");
-                                handler.open();
-                            }} catch (error) {{
-                                console.error("Error creating Plaid instance:", error);
-                                document.getElementById('plaid-result').innerHTML = 
-                                    'Error initializing Plaid: ' + error.message;
+            # Simplified Plaid Link HTML
+            plaid_html = f"""
+            <div>
+                <script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
+                <div id="plaid-status">Initializing Plaid...</div>
+                <script type="text/javascript">
+                    (function() {{
+                        var handler = Plaid.create({{
+                            token: '{link_token}',
+                            onSuccess: function(public_token, metadata) {{
+                                document.getElementById('plaid-status').innerHTML = 'Success!';
+                            }},
+                            onLoad: function() {{ handler.open(); }},
+                            onExit: function(err, metadata) {{
+                                if (err != null) {{
+                                    document.getElementById('plaid-status').innerHTML = 'Error: ' + err.display_message;
+                                }}
                             }}
-                        }}
+                        }});
+                    }})();
+                </script>
+            </div>
+            """
 
-                        // Initialize when the page is ready
-                        if (document.readyState === 'complete') {{
-                            initializePlaid();
-                        }} else {{
-                            window.addEventListener('load', initializePlaid);
-                        }}
-                    </script>
-                </body>
-                </html>
-                """
+            # Display Plaid interface
+            components.html(plaid_html, height=400)
 
-                # Render Plaid Link interface with debugging
-                st.write("Debug: Rendering Plaid interface...")
-                components.html(plaid_html, height=600)
-                st.write("Debug: Plaid interface rendered")
-
-            except Exception as e:
-                st.error(f"Failed to initialize Plaid: {str(e)}")
-                st.write("Debug error:", str(e))
+        except Exception as e:
+            st.error("Failed to initialize Plaid")
+            st.write("Error details:", str(e))
 
     # Display linked accounts
     accounts = data_manager.get_linked_accounts()
@@ -125,7 +81,7 @@ if page == "Bank Accounts":
         st.subheader("Connected Accounts")
         st.dataframe(accounts, use_container_width=True)
 
-        if st.button("Sync Transactions"):
+        if st.button("Sync Transactions", key="sync"):
             with st.spinner("Syncing transactions..."):
                 data_manager.sync_transactions()
             st.success("Transactions synced successfully!")
@@ -133,7 +89,7 @@ if page == "Bank Accounts":
         st.info("No bank accounts connected yet. Click 'Link New Account' to get started!")
 
 # Overview Page
-if page == "Overview":
+elif page == "Overview":
     st.title("Financial Overview")
 
     # Key metrics
@@ -179,7 +135,6 @@ if page == "Overview":
             use_container_width=True
         )
 
-
 # Expenses Page
 elif page == "Expenses":
     st.title("Expense Tracking")
@@ -188,16 +143,17 @@ elif page == "Expenses":
     with st.form("expense_form"):
         col1, col2, col3 = st.columns(3)
         with col1:
-            amount = st.number_input("Amount", min_value=0.0)
+            amount = st.number_input("Amount", min_value=0.0, key="amount")
         with col2:
             category = st.selectbox(
                 "Category",
-                ["Food", "Transport", "Shopping", "Entertainment", "Bills"]
+                ["Food", "Transport", "Shopping", "Entertainment", "Bills"],
+                key="category"
             )
         with col3:
-            date = st.date_input("Date")
+            date = st.date_input("Date", key="date")
 
-        description = st.text_input("Description")
+        description = st.text_input("Description", key="description")
         submitted = st.form_submit_button("Add Expense")
 
         if submitted:
@@ -252,13 +208,13 @@ else:
     with st.form("goal_form"):
         col1, col2, col3 = st.columns(3)
         with col1:
-            goal_name = st.text_input("Goal Name")
+            goal_name = st.text_input("Goal Name", key="goal_name")
         with col2:
-            target_amount = st.number_input("Target Amount", min_value=0.0)
+            target_amount = st.number_input("Target Amount", min_value=0.0, key="target")
         with col3:
-            deadline = st.date_input("Target Date")
+            deadline = st.date_input("Target Date", key="deadline")
 
-        current_amount = st.number_input("Current Amount", min_value=0.0)
+        current_amount = st.number_input("Current Amount", min_value=0.0, key="current")
         submitted = st.form_submit_button("Add Goal")
 
         if submitted:
