@@ -16,7 +16,7 @@ class PlaidClient:
             raise ValueError("Missing required Plaid API credentials")
 
         try:
-            # Configure API client with environment and version
+            # Configure API client
             configuration = plaid.Configuration(
                 host=plaid.Environment.Sandbox,
                 api_key={
@@ -30,18 +30,12 @@ class PlaidClient:
             self.api_client = plaid.ApiClient(configuration)
             self.client = plaid_api.PlaidApi(self.api_client)
 
-            print(f"Initializing Plaid client with ID: {self.client_id[:8]}...")
-            print("Plaid client initialized successfully")
-
         except Exception as e:
             print(f"Error initializing Plaid client: {str(e)}")
             raise
 
     def create_link_token(self, user_id):
         try:
-            print("Creating link token...")
-            print(f"Using client ID: {self.client_id[:8]}...")
-
             # Create link token request
             request = LinkTokenCreateRequest(
                 products=[Products("transactions")],
@@ -53,18 +47,15 @@ class PlaidClient:
                 )
             )
 
-            # Create link token with error handling
+            # Create link token
             response = self.client.link_token_create(request)
-            token = response.link_token
-            print(f"Link token created successfully: {token[:10]}...")
-            return token
+            return response.link_token
 
         except plaid.ApiException as e:
-            error_response = e.body
-            print(f"Plaid API Error: {error_response}")
+            print(f"Plaid API Error: {e.body}")
             raise
         except Exception as e:
-            print(f"Unexpected error creating link token: {str(e)}")
+            print(f"Error creating link token: {str(e)}")
             raise
 
     def exchange_public_token(self, public_token):
