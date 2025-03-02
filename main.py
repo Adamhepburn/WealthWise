@@ -40,7 +40,7 @@ if page == "Bank Accounts":
     if st.button("+ Link New Account", key="link_account"):
         try:
             # Get link token from Flask backend
-            response = requests.post('http://localhost:5001/api/create_link_token')
+            response = requests.post('http://0.0.0.0:5001/api/create_link_token')
             if response.status_code == 200:
                 link_token = response.json()['link_token']
                 st.session_state['link_token'] = link_token
@@ -58,7 +58,7 @@ if page == "Bank Accounts":
                                 onSuccess: function(public_token, metadata) {{
                                     document.getElementById('plaid-status').innerHTML = 'Connecting account...';
                                     // Send public token to Flask backend
-                                    fetch('http://localhost:5001/api/exchange_token', {{
+                                    fetch('http://0.0.0.0:5001/api/exchange_token', {{
                                         method: 'POST',
                                         headers: {{ 'Content-Type': 'application/json' }},
                                         body: JSON.stringify({{

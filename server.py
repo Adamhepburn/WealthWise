@@ -4,7 +4,7 @@ from utils.plaid_client import PlaidClient
 import os
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, resources={r"/api/*": {"origins": "*"}})
 
 # Initialize Plaid client 
 plaid_client = PlaidClient()
