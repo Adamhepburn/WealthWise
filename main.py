@@ -42,54 +42,49 @@ if page == "Bank Accounts":
 
     # Link new account section
     if st.button("+ Link New Account"):
-        try:
-            link_token = data_manager.create_link_token()
-            st.write("Link token created successfully:", link_token[:10] + "...")
+        with st.spinner("Initializing Plaid connection..."):
+            try:
+                link_token = data_manager.create_link_token()
 
-            # Create Plaid Link initialization HTML with immediate execution
-            plaid_html = f"""
-            <html>
-            <body>
-                <script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
-                <script>
-                    window.onload = function() {{
-                        const linkHandler = Plaid.create({{
+                # Simplified Plaid Link initialization
+                plaid_html = f"""
+                <div>
+                    <script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
+                    <script>
+                        var linkHandler = Plaid.create({{
                             token: '{link_token}',
-                            onSuccess: function(public_token, metadata) {{
-                                console.log('Success!', public_token, metadata);
-                                document.getElementById('plaid-result').innerText = 'Account linked successfully!';
+                            onSuccess: (public_token, metadata) => {{
+                                document.getElementById('plaid-result').innerHTML = 'Account linked successfully!';
                             }},
-                            onLoad: function() {{
-                                console.log('Loading Plaid Link...');
+                            onLoad: () => {{
                                 linkHandler.open();
                             }},
-                            onExit: function(err, metadata) {{
-                                console.log('Plaid Link closed');
+                            onExit: (err, metadata) => {{
                                 if (err != null) {{
-                                    console.error('Error:', err);
-                                    document.getElementById('plaid-result').innerText = 'Error: ' + err.message;
+                                    document.getElementById('plaid-result').innerHTML = 'Error: ' + err.display_message;
                                 }}
                             }},
-                            onEvent: function(eventName, metadata) {{
-                                console.log('Event:', eventName, metadata);
+                            onEvent: (eventName, metadata) => {{
+                                document.getElementById('plaid-result').innerHTML = 'Loading Plaid interface...';
                             }}
                         }});
-                    }};
-                </script>
-                <div id="plaid-result"></div>
-            </body>
-            </html>
-            """
+                    </script>
+                    <div id="plaid-result" style="margin: 10px 0; padding: 10px; background: #f0f0f0; border-radius: 5px;">
+                        Initializing Plaid interface...
+                    </div>
+                </div>
+                """
 
-            # Render Plaid Link in a larger iframe
-            components.html(plaid_html, height=800, scrolling=True)
+                # Render Plaid Link interface
+                components.html(plaid_html, height=600)
 
-        except Exception as e:
-            st.error(f"Error initializing Plaid Link: {str(e)}")
+            except Exception as e:
+                st.error(f"Failed to initialize Plaid: {str(e)}")
 
     # Display linked accounts
     accounts = data_manager.get_linked_accounts()
     if not accounts.empty:
+        st.subheader("Connected Accounts")
         st.dataframe(accounts, use_container_width=True)
 
         if st.button("Sync Transactions"):
