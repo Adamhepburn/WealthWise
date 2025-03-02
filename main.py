@@ -8,6 +8,7 @@ from utils.charts import (
     create_expense_trend_chart
 )
 import streamlit.components.v1 as components
+import requests
 
 # Page configuration
 st.set_page_config(
@@ -38,53 +39,66 @@ if page == "Bank Accounts":
     # Link new account section
     if st.button("+ Link New Account", key="link_account"):
         try:
-            # Get link token
-            link_token = data_manager.create_link_token()
-            st.session_state['link_token'] = link_token  # Store in session state
-            st.write("Debug: Link token created:", link_token[:10] + "...")
+            # Get link token from Flask backend
+            response = requests.post('http://localhost:5001/api/create_link_token')
+            if response.status_code == 200:
+                link_token = response.json()['link_token']
+                st.session_state['link_token'] = link_token
+                st.write("Debug: Link token created successfully")
+
+                # Create Plaid Link HTML
+                plaid_html = f"""
+                <div>
+                    <script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
+                    <div id="plaid-status">Initializing Plaid...</div>
+                    <script type="text/javascript">
+                        window.onload = function() {{
+                            const handler = Plaid.create({{
+                                token: '{link_token}',
+                                onSuccess: function(public_token, metadata) {{
+                                    document.getElementById('plaid-status').innerHTML = 'Connecting account...';
+                                    // Send public token to Flask backend
+                                    fetch('http://localhost:5001/api/exchange_token', {{
+                                        method: 'POST',
+                                        headers: {{ 'Content-Type': 'application/json' }},
+                                        body: JSON.stringify({{
+                                            public_token: public_token,
+                                            accounts: metadata.accounts
+                                        }})
+                                    }})
+                                    .then(response => response.json())
+                                    .then(data => {{
+                                        if (data.success) {{
+                                            document.getElementById('plaid-status').innerHTML = 'Account connected successfully!';
+                                            // Reload the page to show new accounts
+                                            window.location.reload();
+                                        }} else {{
+                                            document.getElementById('plaid-status').innerHTML = 'Error: ' + data.error;
+                                        }}
+                                    }});
+                                }},
+                                onLoad: function() {{
+                                    handler.open();
+                                }},
+                                onExit: function(err, metadata) {{
+                                    if (err != null) {{
+                                        document.getElementById('plaid-status').innerHTML = 'Error: ' + err.display_message;
+                                    }}
+                                }},
+                                onEvent: function(eventName, metadata) {{
+                                    console.log('Event:', eventName);
+                                }}
+                            }});
+                        }};
+                    </script>
+                </div>
+                """
+                components.html(plaid_html, height=600)
+            else:
+                st.error("Failed to get link token from server")
         except Exception as e:
             st.error("Failed to initialize Plaid")
             st.write("Error details:", str(e))
-
-    # Display Plaid Link if token exists
-    if 'link_token' in st.session_state:
-        plaid_html = f"""
-        <div>
-            <script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js" async></script>
-            <div id="plaid-status">Initializing Plaid...</div>
-            <script type="text/javascript">
-                console.log('Script starting with token: {st.session_state['link_token'][:10]}...');
-                window.onload = function() {{
-                    console.log('Window loaded, initializing Plaid...');
-                    const handler = Plaid.create({{
-                        token: '{st.session_state['link_token']}',
-                        onSuccess: function(public_token, metadata) {{
-                            document.getElementById('plaid-status').innerHTML = 'Success! Public Token: ' + public_token;
-                            console.log('Success:', public_token, metadata);
-                        }},
-                        onLoad: function() {{
-                            document.getElementById('plaid-status').innerHTML = 'Plaid Loaded - Opening...';
-                            console.log('Plaid SDK loaded');
-                            handler.open();
-                        }},
-                        onExit: function(err, metadata) {{
-                            if (err != null) {{
-                                document.getElementById('plaid-status').innerHTML = 'Error: ' + (err.display_message || JSON.stringify(err));
-                                console.error('Plaid error:', err);
-                            }} else {{
-                                document.getElementById('plaid-status').innerHTML = 'Exited';
-                            }}
-                        }},
-                        onEvent: function(eventName, metadata) {{
-                            console.log('Plaid event:', eventName, metadata);
-                        }}
-                    }});
-                }};
-            </script>
-        </div>
-        """
-        components.html(plaid_html, height=600)
-        st.write("Plaid component loaded - check the popup or browser console (F12) for details.")
 
     # Display linked accounts
     accounts = data_manager.get_linked_accounts()
