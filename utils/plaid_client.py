@@ -26,7 +26,6 @@ class PlaidClient:
                 }
             )
 
-            # Initialize API client
             self.api_client = plaid.ApiClient(configuration)
             self.client = plaid_api.PlaidApi(self.api_client)
 
@@ -36,6 +35,9 @@ class PlaidClient:
 
     def create_link_token(self, user_id):
         try:
+            print("Creating link token...")
+            print(f"Using Plaid environment: {plaid.Environment.Sandbox}")
+
             # Create link token request
             request = LinkTokenCreateRequest(
                 products=[Products("transactions")],
@@ -49,11 +51,10 @@ class PlaidClient:
 
             # Create link token
             response = self.client.link_token_create(request)
-            return response.link_token
+            token = response.link_token
+            print(f"Link token created successfully: {token[:10]}...")
+            return token
 
-        except plaid.ApiException as e:
-            print(f"Plaid API Error: {e.body}")
-            raise
         except Exception as e:
             print(f"Error creating link token: {str(e)}")
             raise
