@@ -5,6 +5,7 @@ from sqlalchemy.pool import QueuePool
 import os
 from datetime import datetime
 import time
+from contextlib import contextmanager
 
 # Get database URL from environment
 DATABASE_URL = os.getenv('DATABASE_URL')
@@ -50,10 +51,25 @@ def get_engine():
 
 # Create engine and session factory
 engine = get_engine()
-session_factory = sessionmaker(bind=engine)
-SessionLocal = scoped_session(session_factory)
+SessionFactory = sessionmaker(bind=engine)
+SessionLocal = scoped_session(SessionFactory)
 Base = declarative_base()
 
+@contextmanager
+def get_db():
+    """Provide a transactional scope around a series of operations."""
+    session = SessionLocal()
+    try:
+        yield session
+        session.commit()
+    except Exception as e:
+        session.rollback()
+        raise
+    finally:
+        session.close()
+        SessionLocal.remove()
+
+# Model definitions remain unchanged
 class PlaidAccount(Base):
     __tablename__ = "plaid_accounts"
 
@@ -117,14 +133,3 @@ def init_db():
 
 # Initialize database
 init_db()
-
-# Database session dependency
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    except Exception as e:
-        db.rollback()
-        raise
-    finally:
-        db.remove()  # This properly closes the session
