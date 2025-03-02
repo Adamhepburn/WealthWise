@@ -9,6 +9,7 @@ from utils.charts import (
 )
 from datetime import datetime
 import json
+import streamlit.components.v1 as components
 
 # Page configuration
 st.set_page_config(
@@ -86,30 +87,46 @@ if page == "Overview":
 elif page == "Bank Accounts":
     st.title("Connected Bank Accounts")
 
-    # Link new account button
+    # Link new account section
     if st.button("+ Link New Account"):
         link_token = data_manager.create_link_token()
 
-        # Inject Plaid Link
-        st.markdown(f"""
+        # Create Plaid Link initialization HTML
+        plaid_html = f"""
+        <div id="plaid-link-container"></div>
         <script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
-        <script>
-        const handler = Plaid.create({{
-            token: '{link_token}',
-            onSuccess: (public_token, metadata) => {{
-                fetch('/api/plaid/exchange_token', {{
-                    method: 'POST',
-                    headers: {{'Content-Type': 'application/json'}},
-                    body: JSON.stringify({{ 
-                        public_token: public_token,
-                        accounts: metadata.accounts
-                    }})
-                }});
-            }},
-        }});
-        handler.open();
+        <script type="text/javascript">
+            const handler = Plaid.create({{
+                token: '{link_token}',
+                onSuccess: function(public_token, metadata) {{
+                    console.log('Success!', public_token, metadata);
+                    // Here you would typically send this to your backend
+                    fetch('/api/plaid/exchange_token', {{
+                        method: 'POST',
+                        headers: {{
+                            'Content-Type': 'application/json'
+                        }},
+                        body: JSON.stringify({{
+                            public_token: public_token,
+                            accounts: metadata.accounts
+                        }})
+                    }});
+                }},
+                onLoad: function() {{
+                    // Open automatically after initialization
+                    handler.open();
+                }},
+                onExit: function(err, metadata) {{
+                    if (err != null) {{
+                        console.error('Error:', err);
+                    }}
+                }}
+            }});
         </script>
-        """, unsafe_allow_html=True)
+        """
+
+        # Render Plaid Link
+        components.html(plaid_html, height=800)
 
     # Display linked accounts
     accounts = data_manager.get_linked_accounts()
