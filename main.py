@@ -46,62 +46,95 @@ if page == "Bank Accounts":
             if response.status_code == 200:
                 link_token = response.json()['link_token']
                 st.session_state['link_token'] = link_token
-                st.write("Debug: Link token created successfully")
+                st.write("Debug: Link token created:", link_token[:10] + "...")
 
-                # Create Plaid Link HTML
+                # Create Plaid Link HTML with improved script loading
                 plaid_html = f"""
-                <div>
-                    <script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
-                    <div id="plaid-status">Initializing Plaid...</div>
-                    <script type="text/javascript">
-                        window.onload = function() {{
-                            console.log('Initializing Plaid Link...');
-                            const handler = Plaid.create({{
-                                token: '{link_token}',
-                                onSuccess: function(public_token, metadata) {{
-                                    console.log('Plaid Link success');
-                                    document.getElementById('plaid-status').innerHTML = 'Connecting account...';
-
-                                    fetch('http://0.0.0.0:5001/api/exchange_token', {{
-                                        method: 'POST',
-                                        headers: {{ 'Content-Type': 'application/json' }},
-                                        body: JSON.stringify({{
-                                            public_token: public_token,
-                                            accounts: metadata.accounts
-                                        }})
-                                    }})
-                                    .then(response => response.json())
-                                    .then(data => {{
-                                        if (data.success) {{
-                                            document.getElementById('plaid-status').innerHTML = 'Account connected successfully!';
-                                            window.location.reload();
-                                        }} else {{
-                                            document.getElementById('plaid-status').innerHTML = 'Error: ' + (data.error || 'Unknown error');
-                                            console.error('Error:', data);
-                                        }}
-                                    }})
-                                    .catch(error => {{
-                                        console.error('Error:', error);
-                                        document.getElementById('plaid-status').innerHTML = 'Error connecting to server';
-                                    }});
-                                }},
-                                onLoad: function() {{
-                                    console.log('Plaid Link loaded');
-                                    handler.open();
-                                }},
-                                onExit: function(err, metadata) {{
-                                    console.log('Plaid Link exit:', err, metadata);
-                                    if (err != null) {{
-                                        document.getElementById('plaid-status').innerHTML = 'Error: ' + err.display_message;
-                                    }}
-                                }},
-                                onEvent: function(eventName, metadata) {{
-                                    console.log('Plaid event:', eventName, metadata);
-                                }}
-                            }});
-                        }};
+                <!DOCTYPE html>
+                <html>
+                <body>
+                    <div id="plaid-status">Loading Plaid...</div>
+                    <script
+                        src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"
+                        onload="initializePlaid()"
+                        onerror="handleScriptError()">
                     </script>
-                </div>
+                    <script type="text/javascript">
+                        function handleScriptError() {{
+                            document.getElementById('plaid-status').innerHTML = 'Failed to load Plaid script';
+                            console.error('Failed to load Plaid script');
+                        }}
+
+                        function initializePlaid() {{
+                            try {{
+                                document.getElementById('plaid-status').innerHTML = 'Initializing Plaid...';
+                                console.log('Initializing Plaid with token:', '{link_token[:10]}...');
+
+                                const plaidConfig = {{
+                                    token: '{link_token}',
+                                    onSuccess: handleSuccess,
+                                    onLoad: handleLoad,
+                                    onExit: handleExit,
+                                    onEvent: handleEvent
+                                }};
+
+                                const handler = Plaid.create(plaidConfig);
+                                handler.open();
+                            }} catch (error) {{
+                                console.error('Plaid initialization error:', error);
+                                document.getElementById('plaid-status').innerHTML = 'Failed to initialize Plaid: ' + error.message;
+                            }}
+                        }}
+
+                        function handleSuccess(public_token, metadata) {{
+                            console.log('Success - got public token');
+                            document.getElementById('plaid-status').innerHTML = 'Connecting account...';
+
+                            fetch('http://0.0.0.0:5001/api/exchange_token', {{
+                                method: 'POST',
+                                headers: {{ 'Content-Type': 'application/json' }},
+                                body: JSON.stringify({{
+                                    public_token: public_token,
+                                    accounts: metadata.accounts
+                                }})
+                            }})
+                            .then(response => response.json())
+                            .then(data => {{
+                                console.log('Exchange response:', data);
+                                if (data.success) {{
+                                    document.getElementById('plaid-status').innerHTML = 'Account connected!';
+                                    window.location.reload();
+                                }} else {{
+                                    throw new Error(data.error || 'Failed to exchange token');
+                                }}
+                            }})
+                            .catch(error => {{
+                                console.error('Exchange error:', error);
+                                document.getElementById('plaid-status').innerHTML = 'Error: ' + error.message;
+                            }});
+                        }}
+
+                        function handleLoad() {{
+                            console.log('Plaid Link loaded');
+                            document.getElementById('plaid-status').innerHTML = 'Opening Plaid interface...';
+                        }}
+
+                        function handleExit(err, metadata) {{
+                            if (err != null) {{
+                                console.error('Plaid exit error:', err);
+                                document.getElementById('plaid-status').innerHTML = 'Error: ' + err.display_message;
+                            }} else {{
+                                console.log('Plaid Link closed');
+                                document.getElementById('plaid-status').innerHTML = 'Interface closed';
+                            }}
+                        }}
+
+                        function handleEvent(eventName, metadata) {{
+                            console.log('Plaid event:', eventName, metadata);
+                        }}
+                    </script>
+                </body>
+                </html>
                 """
                 components.html(plaid_html, height=600)
             else:
@@ -127,24 +160,24 @@ if page == "Bank Accounts":
     else:
         st.info("No bank accounts connected yet. Click 'Link New Account' to get started!")
 
-# Overview Page (Example -  Needs to be implemented based on your requirements)
+# Overview Page
 if page == "Overview":
     st.title("Overview")
-    # Add your overview content here
+    # Add overview content here
 
-# Expenses Page (Example -  Needs to be implemented based on your requirements)
+# Expenses Page
 if page == "Expenses":
     st.title("Expenses")
-    # Add your expenses content here
+    # Add expenses content here
 
-# Investments Page (Example -  Needs to be implemented based on your requirements)
+# Investments Page
 if page == "Investments":
     st.title("Investments")
-    # Add your investments content here
+    # Add investments content here
 
-# Goals Page (Example - Needs to be implemented based on your requirements)
+# Goals Page
 if page == "Goals":
     st.title("Goals")
-    # Add your goals content here
+    # Add goals content here
 
 from flask import Flask, request, jsonify #This import remains here because it is used in server.py
