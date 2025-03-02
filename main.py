@@ -36,6 +36,69 @@ page = st.sidebar.radio(
     ["Overview", "Bank Accounts", "Expenses", "Investments", "Goals"]
 )
 
+# Bank Accounts Page
+if page == "Bank Accounts":
+    st.title("Connected Bank Accounts")
+
+    # Link new account section
+    if st.button("+ Link New Account"):
+        try:
+            link_token = data_manager.create_link_token()
+            st.write("Link token created successfully:", link_token[:10] + "...")
+
+            # Create Plaid Link initialization HTML with immediate execution
+            plaid_html = f"""
+            <html>
+            <body>
+                <script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
+                <script>
+                    window.onload = function() {{
+                        const linkHandler = Plaid.create({{
+                            token: '{link_token}',
+                            onSuccess: function(public_token, metadata) {{
+                                console.log('Success!', public_token, metadata);
+                                document.getElementById('plaid-result').innerText = 'Account linked successfully!';
+                            }},
+                            onLoad: function() {{
+                                console.log('Loading Plaid Link...');
+                                linkHandler.open();
+                            }},
+                            onExit: function(err, metadata) {{
+                                console.log('Plaid Link closed');
+                                if (err != null) {{
+                                    console.error('Error:', err);
+                                    document.getElementById('plaid-result').innerText = 'Error: ' + err.message;
+                                }}
+                            }},
+                            onEvent: function(eventName, metadata) {{
+                                console.log('Event:', eventName, metadata);
+                            }}
+                        }});
+                    }};
+                </script>
+                <div id="plaid-result"></div>
+            </body>
+            </html>
+            """
+
+            # Render Plaid Link in a larger iframe
+            components.html(plaid_html, height=800, scrolling=True)
+
+        except Exception as e:
+            st.error(f"Error initializing Plaid Link: {str(e)}")
+
+    # Display linked accounts
+    accounts = data_manager.get_linked_accounts()
+    if not accounts.empty:
+        st.dataframe(accounts, use_container_width=True)
+
+        if st.button("Sync Transactions"):
+            with st.spinner("Syncing transactions..."):
+                data_manager.sync_transactions()
+            st.success("Transactions synced successfully!")
+    else:
+        st.info("No bank accounts connected yet. Click 'Link New Account' to get started!")
+
 # Overview Page
 if page == "Overview":
     st.title("Financial Overview")
@@ -83,62 +146,6 @@ if page == "Overview":
             use_container_width=True
         )
 
-# Bank Accounts Page
-elif page == "Bank Accounts":
-    st.title("Connected Bank Accounts")
-
-    # Link new account section
-    if st.button("+ Link New Account"):
-        link_token = data_manager.create_link_token()
-
-        # Create Plaid Link initialization HTML
-        plaid_html = f"""
-        <div id="plaid-link-container"></div>
-        <script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js"></script>
-        <script type="text/javascript">
-            const handler = Plaid.create({{
-                token: '{link_token}',
-                onSuccess: function(public_token, metadata) {{
-                    console.log('Success!', public_token, metadata);
-                    // Here you would typically send this to your backend
-                    fetch('/api/plaid/exchange_token', {{
-                        method: 'POST',
-                        headers: {{
-                            'Content-Type': 'application/json'
-                        }},
-                        body: JSON.stringify({{
-                            public_token: public_token,
-                            accounts: metadata.accounts
-                        }})
-                    }});
-                }},
-                onLoad: function() {{
-                    // Open automatically after initialization
-                    handler.open();
-                }},
-                onExit: function(err, metadata) {{
-                    if (err != null) {{
-                        console.error('Error:', err);
-                    }}
-                }}
-            }});
-        </script>
-        """
-
-        # Render Plaid Link
-        components.html(plaid_html, height=800)
-
-    # Display linked accounts
-    accounts = data_manager.get_linked_accounts()
-    if not accounts.empty:
-        st.dataframe(accounts, use_container_width=True)
-
-        if st.button("Sync Transactions"):
-            with st.spinner("Syncing transactions..."):
-                data_manager.sync_transactions()
-            st.success("Transactions synced successfully!")
-    else:
-        st.info("No bank accounts connected yet. Click 'Link New Account' to get started!")
 
 # Expenses Page
 elif page == "Expenses":

@@ -30,7 +30,6 @@ class PlaidClient:
             self.api_client = plaid.ApiClient(configuration)
             self.client = plaid_api.PlaidApi(self.api_client)
 
-            # Debug info
             print(f"Initializing Plaid client with ID: {self.client_id[:8]}...")
             print("Plaid client initialized successfully")
 
@@ -40,9 +39,10 @@ class PlaidClient:
 
     def create_link_token(self, user_id):
         try:
-            print("Attempting to create link token...")
+            print("Creating link token...")
+            print(f"Using client ID: {self.client_id[:8]}...")
 
-            # Create link token request with minimal required parameters
+            # Create link token request
             request = LinkTokenCreateRequest(
                 products=[Products("transactions")],
                 client_name="WealthWise",
@@ -55,8 +55,9 @@ class PlaidClient:
 
             # Create link token with error handling
             response = self.client.link_token_create(request)
-            print("Link token created successfully")
-            return response.link_token
+            token = response.link_token
+            print(f"Link token created successfully: {token[:10]}...")
+            return token
 
         except plaid.ApiException as e:
             error_response = e.body
