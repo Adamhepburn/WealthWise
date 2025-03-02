@@ -1,0 +1,36 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+.stApp {
+    font-family: 'Inter', sans-serif;
+}
+
+.metric-card {
+    background-color: white;
+    border-radius: 8px;
+    padding: 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+}
+
+.success-text {
+    color: #38A169;
+}
+
+.danger-text {
+    color: #FF6B6B;
+}
+
+.accent-text {
+    color: #4299E1;
+}
+
+div.stButton > button {
+    background-color: #00B386;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+}
+
+div.stButton > button:hover {
+    background-color: #009974;
+}
